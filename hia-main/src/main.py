@@ -2,7 +2,7 @@ import streamlit as st
 from auth.session_manager import SessionManager
 from components.auth_pages import show_login_page
 from components.sidebar import show_sidebar
-from components.analysis_form import show_analysis_form
+from components.analysis_form import show_analysis_form, show_export_button
 from components.footer import show_footer
 from components.header import show_header
 from components.health_score import show_health_score_dashboard
@@ -282,6 +282,7 @@ def main():
         messages = show_chat_history()
 
         if messages:
+            show_export_button()
             with st.expander("🔄 New Analysis / Update Report", expanded=False):
                 show_analysis_form()
             handle_chat_input(messages)
