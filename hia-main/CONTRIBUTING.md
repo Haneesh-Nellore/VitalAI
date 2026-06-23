@@ -1,6 +1,6 @@
-# Contributing to HIA (Health Insights Agent) 🩺
+# Contributing to VitalAI 🩺
 
-Thank you for considering contributing to HIA! This document provides guidelines and instructions to help you get started.
+Thank you for considering contributing to VitalAI! This document provides guidelines and instructions to help you get started.
 
 ## Table of Contents
 - [Code of Conduct](#code-of-conduct)
@@ -19,9 +19,8 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We aim to fost
 ## Getting Started
 
 ### Prerequisites
-
 - Python 3.8+
-- Streamlit 1.30.0+ 
+- Streamlit 1.30.0+
 - Supabase account
 - Groq API key
 - PDFPlumber
@@ -29,10 +28,10 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We aim to fost
 
 ### Development Environment Setup
 
-1. **Fork and clone the repository**:
+1. **Clone the repository**:
    ```bash
-   git clone https://github.com/harshhh28/hia.git
-   cd hia
+   git clone https://github.com/Haneesh-Nellore/VitalAI.git
+   cd VitalAI/hia-main
    ```
 
 2. **Install dependencies**:
@@ -59,7 +58,6 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We aim to fost
 ## Development Workflow
 
 ### Branching Strategy
-
 - `main`: Production-ready code
 - `feature/*`: New features
 - `fix/*`: Bug fixes
@@ -75,12 +73,13 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We aim to fost
    ```
 
 2. **Make your changes**
+
 3. **Write commit messages**:
    ```
-   feat: Add new blood analysis component
-   
-   - Implement report analysis visualization
-   - Add validation for blood test values
+   feat: Add health score dashboard
+
+   - Implement score visualization with charts
+   - Add color-coded health indicators
    - Update documentation
    ```
 
@@ -92,7 +91,6 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We aim to fost
 5. **Create a Pull Request**
 
 ### Pull Request Guidelines
-
 - Fill out the PR template completely
 - Reference any related issues
 - Include screenshots for UI changes
@@ -102,14 +100,12 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We aim to fost
 ## Coding Standards
 
 ### Python Style Guide
-
 - Follow [PEP 8](https://peps.python.org/pep-0008/)
 - Use type hints for function parameters
 - Maximum line length: 88 characters
 - Use docstrings for classes and functions
 
 ### Code Organization
-
 ```python
 # Imports
 from typing import Optional
@@ -121,7 +117,7 @@ MAX_UPLOAD_SIZE = 20
 # Classes/Functions
 class AnalysisAgent:
     """Agent for analyzing medical reports."""
-    
+
     def __init__(self) -> None:
         """Initialize the analysis agent."""
         self.model = None
@@ -140,7 +136,6 @@ class AnalysisAgent:
    ```
 
 ## Documentation
-
 - Update README.md for new features
 - Add docstrings to new functions/classes
 - Include example usage where appropriate
@@ -148,7 +143,6 @@ class AnalysisAgent:
 - Keep API documentation current
 
 ## Security
-
 - Never commit sensitive data
 - Follow secure coding practices
 - Validate all user inputs
@@ -157,4 +151,4 @@ class AnalysisAgent:
 
 ---
 
-We appreciate your contributions to making HIA better! If you have questions, feel free to open an issue or contact the maintainers.
+We appreciate your contributions to making VitalAI better! If you have questions, feel free to open an issue or contact the maintainer at [nellorehaneesh123@gmail.com](mailto:nellorehaneesh123@gmail.com).
