@@ -7,177 +7,147 @@ from components.pdf_export import show_pdf_export_button
 
 
 def show_analysis_form():
-    # Initialize report source in session state for new sessions
-    if (
-        "current_session" in st.session_state
-        and "report_source" not in st.session_state
-    ):
+    if "report_source" not in st.session_state:
         st.session_state.report_source = "Upload PDF"
 
     report_source = st.radio(
         "Choose report source",
         ["Upload PDF", "Use Sample PDF"],
-        index=0 if st.session_state.get("report_source") == "Upload PDF" else 1,
         horizontal=True,
         key="report_source",
     )
 
-    pdf_contents = get_report_contents(report_source)
-
-    if pdf_contents:
-        render_patient_form(pdf_contents)
-
-
-def get_report_contents(report_source):
     if report_source == "Upload PDF":
         uploaded_file = st.file_uploader(
             f"Upload blood report PDF (Max {MAX_UPLOAD_SIZE_MB}MB)",
             type=["pdf"],
-            help=f"Maximum file size: {MAX_UPLOAD_SIZE_MB}MB. Only PDF files containing medical reports are supported",
+            help=f"Maximum file size: {MAX_UPLOAD_SIZE_MB}MB",
+            key="pdf_uploader"
         )
-        if uploaded_file:
-            file_size_mb = uploaded_file.size / (1024 * 1024)
-            if file_size_mb > MAX_UPLOAD_SIZE_MB:
-                st.error(
-                    f"File size ({file_size_mb:.1f}MB) exceeds the {MAX_UPLOAD_SIZE_MB}MB limit."
-                )
-                return None
 
-            if uploaded_file.type != "application/pdf":
-                st.error("Please upload a valid PDF file.")
-                return None
+        if uploaded_file is not None:
+            # Extract and store in session state
+            if st.session_state.get("uploaded_file_name") != uploaded_file.name:
+                with st.spinner("Reading PDF..."):
+                    file_size_mb = uploaded_file.size / (1024 * 1024)
+                    if file_size_mb > MAX_UPLOAD_SIZE_MB:
+                        st.error(f"File too large ({file_size_mb:.1f}MB).")
+                        return
 
-            pdf_contents = extract_text_from_pdf(uploaded_file)
-            if isinstance(pdf_contents, str) and (
-                pdf_contents.startswith(
-                    ("File size exceeds", "Invalid file type", "Error validating")
-                )
-                or pdf_contents.startswith("The uploaded file")
-                or "error" in pdf_contents.lower()
-            ):
-                st.error(pdf_contents)
-                return None
-            with st.expander("View Extracted Report"):
-                st.text(pdf_contents)
-            return pdf_contents
+                    try:
+                        text = ""
+                        import pdfplumber
+                        with pdfplumber.open(uploaded_file) as pdf:
+                            for page in pdf.pages:
+                                extracted = page.extract_text()
+                                if extracted:
+                                    text += extracted + "\n"
+
+                        if len(text.strip()) < 10:
+                            st.error("Could not extract text from this PDF.")
+                            return
+
+                        st.session_state.uploaded_pdf_text = text
+                        st.session_state.uploaded_file_name = uploaded_file.name
+                    except Exception as e:
+                        st.error(f"Failed to read PDF: {str(e)}")
+                        return
+
+            # PDF is ready — show button
+            if st.session_state.get("uploaded_pdf_text"):
+                st.success(f"✅ {uploaded_file.name} loaded and ready!")
+                if st.button(
+                    "🔍 Analyze Report",
+                    type="primary",
+                    use_container_width=True,
+                    key="analyze_btn"
+                ):
+                    run_analysis(st.session_state.uploaded_pdf_text)
+
     else:
-        with st.expander("View Sample Report"):
-            st.text(SAMPLE_REPORT)
-        return SAMPLE_REPORT
-    return None
+        # Sample PDF
+        st.info("Using built-in sample blood report.")
+        if st.button(
+            "🔍 Analyze Sample Report",
+            type="primary",
+            use_container_width=True,
+            key="analyze_sample_btn"
+        ):
+            run_analysis(SAMPLE_REPORT)
 
 
-def render_patient_form(pdf_contents):
-    with st.form("analysis_form"):
-        st.markdown("""
-            <p style='
-                color: #94A3B8;
-                font-size: 0.8rem;
-                font-weight: 600;
-                letter-spacing: 0.05em;
-                text-transform: uppercase;
-                margin-bottom: 0.75rem;
-            '>Patient Details</p>
-        """, unsafe_allow_html=True)
-
-        patient_name = st.text_input("Patient Name", placeholder="Enter patient name")
-        col1, col2 = st.columns(2)
-        with col1:
-            age = st.number_input("Age", min_value=0, max_value=120)
-        with col2:
-            gender = st.selectbox("Gender", ["Male", "Female", "Other"])
-
-        st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
-
-        if st.form_submit_button("🔍 Analyze Report", use_container_width=True, type="primary"):
-            handle_form_submission(patient_name, age, gender, pdf_contents)
-
-
-def handle_form_submission(patient_name, age, gender, pdf_contents):
-    if not all([patient_name, age, gender]):
-        st.error("Please fill in all fields")
-        return
-
+def run_analysis(pdf_text):
     from services.ai_service import generate_analysis
 
     can_analyze, error_msg = generate_analysis(None, None, check_only=True)
     if not can_analyze:
         st.error(error_msg)
-        st.stop()
         return
 
-    with st.spinner("Analyzing your report..."):
-        st.session_state.current_report_text = pdf_contents
-
-        # Store patient info for PDF export
-        st.session_state.last_patient_name = patient_name
-        st.session_state.last_patient_age = age
-        st.session_state.last_patient_gender = gender
-
+    with st.spinner("🧠 Analyzing your report... This may take 20-30 seconds."):
         st.session_state.auth_service.save_chat_message(
             st.session_state.current_session["id"],
-            f"Analyzing report for patient: {patient_name}",
+            "Analyzing uploaded blood report...",
+            role="user"
         )
 
         result = generate_analysis(
             {
-                "patient_name": patient_name,
-                "age": age,
-                "gender": gender,
-                "report": pdf_contents,
+                "patient_name": "the patient",
+                "age": "as mentioned in the report",
+                "gender": "as mentioned in the report",
+                "report": pdf_text,
             },
             SPECIALIST_PROMPTS["comprehensive_analyst"],
         )
 
         if result["success"]:
-            report_metadata = f"__REPORT_TEXT__\n{pdf_contents}\n__END_REPORT_TEXT__"
+            report_metadata = f"__REPORT_TEXT__\n{pdf_text}\n__END_REPORT_TEXT__"
             st.session_state.auth_service.save_chat_message(
-                st.session_state.current_session["id"], report_metadata, role="system"
+                st.session_state.current_session["id"],
+                report_metadata,
+                role="system"
             )
 
             content = result["content"]
             if "model_used" in result:
-                model_info = f"\n\n*Analysis generated using {result['model_used']}*"
-                content += model_info
+                content += f"\n\n*Analysis generated using {result['model_used']}*"
 
-            # Store analysis for PDF export
+            st.session_state.current_report_text = pdf_text
             st.session_state.last_analysis_text = content
+            st.session_state.last_patient_name = "Patient"
+            st.session_state.last_patient_age = ""
+            st.session_state.last_patient_gender = ""
+
+            # Clear uploaded file state
+            st.session_state.uploaded_pdf_text = None
+            st.session_state.uploaded_file_name = None
 
             st.session_state.auth_service.save_chat_message(
-                st.session_state.current_session["id"], content, role="assistant"
+                st.session_state.current_session["id"],
+                content,
+                role="assistant"
             )
             st.rerun()
         else:
-            st.error(result["error"])
-            st.stop()
+            st.error(
+                f"Analysis failed: {result.get('error', 'Unknown error')}")
 
 
 def show_export_button():
-    """Show PDF export button if analysis is available."""
-    if (
-        st.session_state.get("last_analysis_text")
-        and st.session_state.get("last_patient_name")
-    ):
+    if st.session_state.get("last_analysis_text"):
         st.markdown("""
-            <div style='
-                margin: 1rem 0;
-                padding-top: 1rem;
-                border-top: 1px solid rgba(99, 179, 237, 0.1);
-            '>
-                <p style='
-                    color: #64748B;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    letter-spacing: 0.08em;
-                    text-transform: uppercase;
-                    margin-bottom: 0.5rem;
-                '>Export Report</p>
+            <div style='margin: 1rem 0; padding-top: 1rem;
+                border-top: 1px solid rgba(99, 179, 237, 0.1);'>
+                <p style='color: #64748B; font-size: 0.75rem; font-weight: 600;
+                    letter-spacing: 0.08em; text-transform: uppercase;
+                    margin-bottom: 0.5rem;'>Export Report</p>
             </div>
         """, unsafe_allow_html=True)
 
         show_pdf_export_button(
-            patient_name=st.session_state.last_patient_name,
-            age=st.session_state.last_patient_age,
-            gender=st.session_state.last_patient_gender,
+            patient_name=st.session_state.get("last_patient_name", "Patient"),
+            age=st.session_state.get("last_patient_age", ""),
+            gender=st.session_state.get("last_patient_gender", ""),
             analysis_text=st.session_state.last_analysis_text,
         )
